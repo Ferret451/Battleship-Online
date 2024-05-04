@@ -10,3 +10,15 @@ D:\Уник\КСИС\Lab4\Client\Client\obj\Debug\Client.pdb
 D:\Уник\КСИС\Lab4\Client\Client\obj\Debug\Client.GameForm.resources
 D:\Уник\КСИС\Lab4\Client\Client\obj\Debug\Client.JoinForm.resources
 D:\Уник\КСИС\Lab4\Client\Client\obj\Debug\Client.MenuForm.resources
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\Client.exe.config
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\Client.exe
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\Client.pdb
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.csproj.AssemblyReference.cache
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.GameForm.resources
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.JoinForm.resources
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.MenuForm.resources
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.Properties.Resources.resources
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.csproj.GenerateResource.cache
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.csproj.CoreCompileInputs.cache
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.exe
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.pdb

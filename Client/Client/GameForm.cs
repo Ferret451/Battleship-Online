@@ -32,15 +32,12 @@ namespace Client {
         }
 
         private async Task SendMessageAsync(string message) {
-            if (_clientWebSocket.State == WebSocketState.Open)
-            {
+            if (_clientWebSocket.State == WebSocketState.Open) {
                 byte[] buffer = Encoding.UTF8.GetBytes(message);
                 await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
 
                 LogMessage("Sent message: " + message); 
-            }
-            else
-            {
+            } else {
                 LogMessage("Error: WebSocket connection is not open.");
             }
         }
@@ -50,16 +47,13 @@ namespace Client {
         }
 
         private async Task ReceiveMessageAsync() {
-            if (_clientWebSocket.State == WebSocketState.Open)
-            {
+            if (_clientWebSocket.State == WebSocketState.Open) {
                 byte[] buffer = new byte[1024];
                 WebSocketReceiveResult result = await _clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 string receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
                 LogMessage("Received message: " + receivedMessage);
-            }
-            else
-            {
+            } else {
                 LogMessage("Error: WebSocket connection is not open.");
             }
         }
@@ -69,8 +63,7 @@ namespace Client {
         }
 
         private async void MainForm_FormClosing(object sender, FormClosingEventArgs e) {
-            if (_clientWebSocket != null)
-            {
+            if (_clientWebSocket != null) {
                 await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                 _clientWebSocket.Dispose();
             }

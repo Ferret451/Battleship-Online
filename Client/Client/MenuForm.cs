@@ -25,10 +25,8 @@ namespace Client {
         }
 
         private async void butConnect_Click(object sender, EventArgs e) {
-            using (JoinForm joinRoomForm = new JoinForm())
-            {
-                if (joinRoomForm.ShowDialog() == DialogResult.OK)
-                {
+            using (JoinForm joinRoomForm = new JoinForm()) {
+                if (joinRoomForm.ShowDialog() == DialogResult.OK) {
                     string roomCode = joinRoomForm.RoomCode;
                     if (!string.IsNullOrEmpty(roomCode)) {
                         _clientWebSocket = new ClientWebSocket();
@@ -36,8 +34,7 @@ namespace Client {
                         await _clientWebSocket.ConnectAsync(serverUri, default);
 
                         MessageBox.Show($"Joined room with code: {roomCode}");
-                    }
-                    else {
+                    } else {
                         MessageBox.Show("Room code cannot be empty.");
                     }
                 }
