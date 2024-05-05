@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"time"
 )
 
 var upgrader = websocket.Upgrader{
@@ -44,16 +45,17 @@ func createRoomHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
+		conn.Close()
 		return
 	}
-	defer conn.Close()
 
 	code := generateRoomCode()
 	room := &Room{
 		Code:    code,
-		Players: make([]Player, 2),
+		Players: make([]Player, 0),
 	}
-	room.Players[0] = Player{conn, false}
+	newPlayer := Player{conn, false}
+	room.Players = append(room.Players, newPlayer)
 	rooms[code] = room
 
 	log.Println("Room created with code:", code)
@@ -62,28 +64,68 @@ func createRoomHandler(w http.ResponseWriter, r *http.Request) {
 	err = conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Println(err)
-		return
 	}
+
+	go room.handlePlayerMessages(conn)
+
+	go room.cleanup(code)
 }
 
 func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
+
+		conn.Close()
 		return
 	}
-	defer conn.Close()
 
 	code := r.URL.Query().Get("code")
 	room, ok := rooms[code]
 	if !ok {
-		log.Println("Room not found:", code)
+		message := createMessage("error", "server", "No such code!")
+		err = conn.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			log.Println(err)
+		}
+
+		conn.Close()
 		return
+	}
+
+	if len(room.Players) == 2 {
+		message := createMessage("error", "server", "Room is fulfill!")
+		err = conn.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			log.Println(err)
+		}
+
+		conn.Close()
+		return
+	}
+
+	message := createMessage("joined", "server", code)
+	err = conn.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		log.Println(err)
 	}
 
 	newPlayer := Player{conn, false}
 	room.Players = append(room.Players, newPlayer)
 	log.Println("Player joined room with code:", code)
 
-	room.handleMessages()
+	go room.handlePlayerMessages(conn)
+
+	go room.cleanup(code)
+}
+
+func (room *Room) cleanup(code string) {
+	ticker := time.Tick(time.Minute)
+	for range ticker {
+		if len(room.Players) == 0 {
+			log.Println("Cleaning up room with code:", code)
+			delete(rooms, code)
+			break
+		}
+	}
 }

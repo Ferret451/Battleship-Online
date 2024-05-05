@@ -13,17 +13,13 @@ using System.Windows.Forms;
 namespace Client {
     public partial class GameForm : Form {
         private ClientWebSocket _clientWebSocket;
+        private string _code;
 
-        public GameForm() {
+        public GameForm(ClientWebSocket clientWebSocket, string code) {
             InitializeComponent();
-        }
-
-        private async void MainForm_Load(object sender, EventArgs e) {
-            _clientWebSocket = new ClientWebSocket();
-            Uri serverUri = new Uri("ws://localhost:8080/echo");
-            await _clientWebSocket.ConnectAsync(serverUri, CancellationToken.None);
-
-            LogMessage("Connected to server.");
+            
+            _clientWebSocket = clientWebSocket;
+            _code = code;
         }
 
         private async void SendMessageButton_Click(object sender, EventArgs e) {
@@ -60,13 +56,6 @@ namespace Client {
 
         private void LogMessage(string message) {
             lbMessages.Items.Add(message);
-        }
-
-        private async void MainForm_FormClosing(object sender, FormClosingEventArgs e) {
-            if (_clientWebSocket != null) {
-                await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                _clientWebSocket.Dispose();
-            }
         }
     }
 }

@@ -12,13 +12,8 @@ type Message struct {
 	Info     string `json:"Info"`
 }
 
-func (room *Room) handleMessages() {
-	for _, player := range room.Players {
-		go room.handlePlayerMessages(player.Connection)
-	}
-}
-
 func (room *Room) handlePlayerMessages(conn *websocket.Conn) {
+	defer conn.Close()
 	for {
 		_, messageByte, err := conn.ReadMessage()
 		if err != nil {
@@ -29,6 +24,19 @@ func (room *Room) handlePlayerMessages(conn *websocket.Conn) {
 		message, err := handleMessage(messageByte)
 		if err == nil {
 			switch message.Type {
+			case "close":
+				log.Println("Player", message.SentFrom, "disconnected from room", message.Info)
+
+				//Deleting player
+				var result []Player
+				for _, v := range room.Players {
+					if v.Connection != conn {
+						result = append(result, v)
+					}
+				}
+				room.Players = result
+
+				break
 			case "shot":
 				log.Println("Shot fired by:", message.SentFrom)
 

@@ -1,6 +1,5 @@
 using System;
 using System.Net.WebSockets;
-using System.Text;
 using System.Windows.Forms;
 
 namespace Client {
@@ -23,24 +22,39 @@ namespace Client {
             
             if (message.Type != "code") {
                 MessageBox.Show("Error: Expected room code message from server.");
-                return;
             } else {
-                MessageBox.Show($"Room created with code: {message.Info}");    
+                string code = message.Info;
+                GameForm gameForm = new GameForm(_clientWebSocket, code);
+                gameForm.ShowDialog();  
+                
+                buffer = MessageManager.CreateMessage("close", "client", code);
+                await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, default);
             }
         }
 
         private async void butConnect_Click(object sender, EventArgs e) {
             using (JoinForm joinRoomForm = new JoinForm()) {
                 if (joinRoomForm.ShowDialog() == DialogResult.OK) {
-                    string roomCode = joinRoomForm.RoomCode;
-                    if (!string.IsNullOrEmpty(roomCode)) {
-                        _clientWebSocket = new ClientWebSocket();
-                        Uri serverUri = new Uri($"ws://localhost:8080/joinRoom?code={roomCode}");
-                        await _clientWebSocket.ConnectAsync(serverUri, default);
+                    string code = joinRoomForm.RoomCode;
+                    
+                    _clientWebSocket = new ClientWebSocket();
+                    Uri serverUri = new Uri($"ws://localhost:8080/joinRoom?code={code}");
+                    await _clientWebSocket.ConnectAsync(serverUri, default);
+                    
+                    byte[] buffer = new byte[1024];
+                    await _clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
+                    Message message = MessageManager.HandleMessage(buffer);
 
-                        MessageBox.Show($"Joined room with code: {roomCode}");
+                    if (message.Type == "error") {
+                        MessageBox.Show($"Error: {message.Info}");
+                    } else if (message.Type == "joined") {
+                        GameForm gameForm = new GameForm(_clientWebSocket, code);
+                        gameForm.ShowDialog();
+                        
+                        buffer = MessageManager.CreateMessage("close", "client", code);
+                        await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, default);
                     } else {
-                        MessageBox.Show("Room code cannot be empty.");
+                        MessageBox.Show("Error: Expected joined message from server.");
                     }
                 }
             }

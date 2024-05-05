@@ -32,7 +32,7 @@ namespace Client {
             return message;
         }
         
-        public static byte[] createMessage(string type, string sentFrom, string info) {
+        public static byte[] CreateMessage(string type, string sentFrom, string info) {
             Message message = new Message {
                 Type = type,
                 SentFrom = sentFrom,
