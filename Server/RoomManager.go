@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
@@ -18,10 +17,15 @@ const (
 	roomCodeLength = 6
 )
 
+type Player struct {
+	Connection *websocket.Conn
+	IsReady    bool
+}
+
 // Room represents a game room with a unique code and players.
 type Room struct {
 	Code    string
-	Players []*websocket.Conn
+	Players []Player
 }
 
 var rooms map[string]*Room
@@ -47,13 +51,19 @@ func createRoomHandler(w http.ResponseWriter, r *http.Request) {
 	code := generateRoomCode()
 	room := &Room{
 		Code:    code,
-		Players: []*websocket.Conn{conn},
+		Players: make([]Player, 2),
 	}
+	room.Players[0] = Player{conn, false}
 	rooms[code] = room
 
-	fmt.Println("Room created with code:", code)
+	log.Println("Room created with code:", code)
 
-	conn.WriteMessage(websocket.TextMessage, []byte(code))
+	message := createMessage("code", "server", code)
+	err = conn.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 }
 
 func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
@@ -71,6 +81,9 @@ func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room.Players = append(room.Players, conn)
-	fmt.Println("Player joined room with code:", code)
+	newPlayer := Player{conn, false}
+	room.Players = append(room.Players, newPlayer)
+	log.Println("Player joined room with code:", code)
+
+	room.handleMessages()
 }

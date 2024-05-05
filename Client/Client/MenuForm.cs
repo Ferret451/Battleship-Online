@@ -18,10 +18,15 @@ namespace Client {
 
             // Handle room code received from server
             byte[] buffer = new byte[1024];
-            WebSocketReceiveResult result = await _clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
-            string roomCode = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            await _clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
+            Message message = MessageManager.HandleMessage(buffer);
             
-            MessageBox.Show($"Room created with code: {roomCode}");
+            if (message.Type != "code") {
+                MessageBox.Show("Error: Expected room code message from server.");
+                return;
+            } else {
+                MessageBox.Show($"Room created with code: {message.Info}");    
+            }
         }
 
         private async void butConnect_Click(object sender, EventArgs e) {
