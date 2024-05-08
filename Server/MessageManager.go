@@ -23,6 +23,8 @@ func (room *Room) handlePlayerMessages(conn *websocket.Conn) {
 
 		message, err := handleMessage(messageByte)
 		if err == nil {
+			//log.Println(message.SentFrom, "sent message of type |", message.Type, "| with message |", message.Info, "|")
+
 			switch message.Type {
 			case "close":
 				log.Println("Player", message.SentFrom, "disconnected from room", message.Info)
@@ -41,7 +43,7 @@ func (room *Room) handlePlayerMessages(conn *websocket.Conn) {
 				log.Println("Shot fired by:", message.SentFrom)
 
 			case "chat":
-				log.Println("Chat message from:", message.SentFrom)
+				room.sendToAll(message.Type, message.SentFrom, message.Info)
 
 			default:
 				log.Println("Unknown message type:", message.Type)

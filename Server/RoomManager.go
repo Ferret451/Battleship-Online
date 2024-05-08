@@ -104,7 +104,7 @@ func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := createMessage("joined", "server", code)
+	message := createMessage("code", "server", code)
 	err = conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Println(err)

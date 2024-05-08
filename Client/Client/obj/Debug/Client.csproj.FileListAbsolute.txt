@@ -40,4 +40,4 @@ D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\System.Text.
 D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\System.Text.Json.xml
 D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\System.Threading.Tasks.Extensions.xml
 D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\bin\Debug\System.ValueTuple.xml
-D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.csproj.CopyComplete
+D:\Уник\КСИС\Lab4\Battleship-Online\Client\Client\obj\Debug\Client.csproj.Up2Date

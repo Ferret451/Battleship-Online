@@ -11,6 +11,9 @@ namespace Client {
         }
 
         private async void butCreateRoom_Click(object sender, EventArgs e) {
+            if (!ValidateNickname(tbNickname.Text))
+                return;
+            
             _clientWebSocket = new ClientWebSocket();
             Uri serverUri = new Uri("ws://localhost:8080/createRoom");
             await _clientWebSocket.ConnectAsync(serverUri, default);
@@ -24,7 +27,7 @@ namespace Client {
                 MessageBox.Show("Error: Expected room code message from server.");
             } else {
                 string code = message.Info;
-                GameForm gameForm = new GameForm(_clientWebSocket, code);
+                GameForm gameForm = new GameForm(_clientWebSocket, code, tbNickname.Text);
                 gameForm.ShowDialog();  
                 
                 buffer = MessageManager.CreateMessage("close", "client", code);
@@ -33,6 +36,9 @@ namespace Client {
         }
 
         private async void butConnect_Click(object sender, EventArgs e) {
+            if (!ValidateNickname(tbNickname.Text))
+                return;
+            
             using (JoinForm joinRoomForm = new JoinForm()) {
                 if (joinRoomForm.ShowDialog() == DialogResult.OK) {
                     string code = joinRoomForm.RoomCode;
@@ -47,8 +53,8 @@ namespace Client {
 
                     if (message.Type == "error") {
                         MessageBox.Show($"Error: {message.Info}");
-                    } else if (message.Type == "joined") {
-                        GameForm gameForm = new GameForm(_clientWebSocket, code);
+                    } else if (message.Type == "code") {
+                        GameForm gameForm = new GameForm(_clientWebSocket, code, tbNickname.Text);
                         gameForm.ShowDialog();
                         
                         buffer = MessageManager.CreateMessage("close", "client", code);
@@ -59,9 +65,27 @@ namespace Client {
                 }
             }
         }
+
+        private bool ValidateNickname(string nickname) {
+            if (nickname.Length > 10) {
+                MessageBox.Show("Nickname is too long!");
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(nickname)) {
+                MessageBox.Show("Nickname cannot be empty!");
+                return false;
+            }
+
+            return true;
+        }
         
         private void butQuit_Click(object sender, EventArgs e) {
             Close();
+        }
+
+        private async void MenuForm_FormClosing(object sender, FormClosingEventArgs e) {
+            await _clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by client", default);
         }
     }
 }

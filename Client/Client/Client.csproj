@@ -128,5 +128,11 @@
     <ItemGroup>
         <None Include="App.config"/>
     </ItemGroup>
+    <ItemGroup>
+      <Content Include="Resources\chat.png" />
+      <Content Include="Resources\chat1.png" />
+      <Content Include="Resources\fullscreen.png" />
+      <Content Include="Resources\send.png" />
+    </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
 </Project>

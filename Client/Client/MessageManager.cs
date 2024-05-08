@@ -24,8 +24,12 @@ namespace Client {
         
         public static Message HandleMessage(byte[] jsonData) {
             jsonData = CutMessage(jsonData);
-            
-            var readOnlySpan = new ReadOnlySpan<byte>(jsonData);
+
+            // foreach (var b in jsonData) {
+            //     Console.Write(b + " ");    
+            // }
+            //
+            // Console.WriteLine();
             
             Message message = JsonSerializer.Deserialize<Message>(jsonData);
 
