@@ -131,6 +131,7 @@
     <ItemGroup>
       <Content Include="Resources\chat.png" />
       <Content Include="Resources\chat1.png" />
+      <Content Include="Resources\clean.png" />
       <Content Include="Resources\fullscreen.png" />
       <Content Include="Resources\send.png" />
     </ItemGroup>
