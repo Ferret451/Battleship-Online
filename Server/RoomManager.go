@@ -132,7 +132,7 @@ func JoinRoomHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (room *Room) Cleanup() {
-	ticker := time.Tick(time.Minute / 2)
+	ticker := time.Tick(time.Second)
 	for range ticker {
 		var remainingPlayers []Player
 

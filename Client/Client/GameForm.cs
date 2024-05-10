@@ -44,8 +44,11 @@ namespace Client {
             tbMessage.BringToFront();
             butSend.BringToFront();
             panChat.Visible = false;
+            
             labTurn.Visible = false;
             labTurn.SendToBack();
+            labYou.SendToBack();
+            labEnemy.SendToBack();
             
             ResizeControls();
             
@@ -94,6 +97,7 @@ namespace Client {
             ResizeDgv(dgvEnemyField);
             dgvEnemyField.Left = dgvPlayerField.Left + dgvPlayerField.Width + (int)(0.1 * dgvEnemyField.Parent.Width);
             labEnemy.Left = dgvEnemyField.Left;
+            labTurn.Left = dgvEnemyField.Left;
             
             tbChat.Height = (int)(tbChat.Parent.Height * 0.8);
             panSend.Height = (int)(panSend.Parent.Height * 0.2);
@@ -200,6 +204,11 @@ namespace Client {
                     else if (message.Type == "shotFromYou") {
                         _enemyFieldManager.ReadField(message.Info);
                     }
+                    else if (message.Type == "win" || message.Type == "lose") {
+                        MessageBox.Show(message.Info);
+                        
+                        Close();
+                    }
                     else {
                         Console.WriteLine($"Error: unknown message type: {message.Type}.");
                     }
@@ -217,9 +226,9 @@ namespace Client {
             }
             finally {
                 MessageBox.Show("Connection closed");
-            
+                
                 CloseConnection(WebSocketCloseStatus.NormalClosure, "Connection closed");
-            
+                
                 Close();
             }
         }

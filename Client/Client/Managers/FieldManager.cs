@@ -10,7 +10,7 @@ namespace Client {
         public  Color AroundShipColor { get; } = Color.Gray;
         public  Color MissColor { get; } = Color.CadetBlue;
         public  Color HitColor { get; } = Color.Yellow;
-        public  Color DestroyColor { get; } = Color.Red;
+        public  Color DestroyColor { get; } = Color.DarkRed;
         public  Color DefaultFieldColor { get; private set;  }
 
         protected bool IsRight = true;
@@ -37,7 +37,7 @@ namespace Client {
                 for (int i = 0; i < shipSize; i++) {
                     if (columIndex + i < Dgv.ColumnCount) {
                         Color cellColor = Dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor;
-                        if (cellColor != ShipColor && cellColor != AroundShipColor) {
+                        if (cellColor == DefaultFieldColor) {
                             Dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor = color;
                             Dgv.Rows[rowIndex].Cells[columIndex + i].Style.SelectionBackColor = color;
                         }
@@ -53,8 +53,7 @@ namespace Client {
                 for (int i = 0; i < shipSize; i++) {
                     if (rowIndex + i < Dgv.RowCount) {
                         Color cellColor = Dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor;
-                        if (cellColor != ShipColor &&
-                            cellColor != AroundShipColor) {
+                        if (cellColor == DefaultFieldColor) {
                             Dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor = color;
                             Dgv.Rows[rowIndex + i].Cells[columIndex].Style.SelectionBackColor = color;
                         }
@@ -89,8 +88,7 @@ namespace Client {
                 for (int i = 0; i < shipSize; i++) {
                     if (columIndex + i < Dgv.ColumnCount) {
                         Color cellColor = Dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor;
-                        if (cellColor != ShipColor &&
-                            cellColor != AroundShipColor) {
+                        if (cellColor == _canToStandColor || cellColor == _cannotToStandColor) {
                             Dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor = DefaultFieldColor;
                             Dgv.Rows[rowIndex].Cells[columIndex + i].Style.SelectionBackColor = DefaultFieldColor;
                         }
@@ -102,8 +100,7 @@ namespace Client {
                 for (int i = 0; i < shipSize; i++) {
                     if (rowIndex + i < Dgv.RowCount) {
                         Color cellColor = Dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor;
-                        if (cellColor != ShipColor &&
-                            cellColor != AroundShipColor) {
+                        if (cellColor == _canToStandColor || cellColor == _cannotToStandColor) {
                             Dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor = DefaultFieldColor;
                             Dgv.Rows[rowIndex + i].Cells[columIndex].Style.SelectionBackColor = DefaultFieldColor;
                         }
@@ -138,21 +135,27 @@ namespace Client {
                 for (int j = 0; j < Dgv.ColumnCount; j++) {
                     if (fieldStr[strIndex] == '0') {
                         Dgv.Rows[i].Cells[j].Style.BackColor = DefaultFieldColor;
+                        Dgv.Rows[i].Cells[j].Style.SelectionBackColor = DefaultFieldColor;
                     }
                     else if (fieldStr[strIndex] == '1') {
                         Dgv.Rows[i].Cells[j].Style.BackColor = ShipColor;
+                        Dgv.Rows[i].Cells[j].Style.SelectionBackColor = ShipColor;
                     }
                     else if (fieldStr[strIndex] == '2') {
                         Dgv.Rows[i].Cells[j].Style.BackColor = AroundShipColor;
+                        Dgv.Rows[i].Cells[j].Style.SelectionBackColor = AroundShipColor;
                     }
                     else if (fieldStr[strIndex] == '3') {
                         Dgv.Rows[i].Cells[j].Style.BackColor = MissColor;
+                        Dgv.Rows[i].Cells[j].Style.SelectionBackColor = MissColor;
                     }
                     else if (fieldStr[strIndex] == '4') {
                         Dgv.Rows[i].Cells[j].Style.BackColor = HitColor;
+                        Dgv.Rows[i].Cells[j].Style.SelectionBackColor = HitColor;
                     }
                     else if (fieldStr[strIndex] == '5') {
                         Dgv.Rows[i].Cells[j].Style.BackColor = DestroyColor;
+                        Dgv.Rows[i].Cells[j].Style.SelectionBackColor = DestroyColor;
                     }
                     
                     strIndex++;

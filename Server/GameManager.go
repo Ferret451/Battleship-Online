@@ -92,6 +92,7 @@ func (room *Room) ChangeTurnTo(index int) {
 
 func (room *Room) HandleShoot(shootFromIndex int, coords string) {
 	var shootToIndex = (shootFromIndex + 1) % 2
+	var field = &room.Players[shootToIndex].Field
 
 	x, y, err := ExtractNumbers(coords)
 	if err != nil {
@@ -99,22 +100,44 @@ func (room *Room) HandleShoot(shootFromIndex int, coords string) {
 		return
 	}
 
-	if room.Players[shootToIndex].Field[x][y] == 1 {
-		room.Players[shootToIndex].Field[x][y] = 4
+	isHit := false
+	if (*field)[x][y] == 1 {
+		(*field)[x][y] = 4
 
-		if isDestroyed(room.Players[shootToIndex].Field, x, y) {
-			Recolor(&room.Players[shootToIndex].Field, x, y)
+		if isDestroyed(*field, x, y) {
+			Recolor(field, x, y)
 		}
+
+		isHit = true
 	} else {
-		room.Players[shootToIndex].Field[x][y] = 3
+		(*field)[x][y] = 3
 	}
 
-	room.SendToPlayer(shootToIndex, "shotToYou", "server", WriteField(room.Players[shootToIndex].Field))
+	room.SendToPlayer(shootToIndex, "shotToYou", "server", WriteField(*field))
 
-	transformedField := TransformField(room.Players[shootToIndex].Field)
+	transformedField := TransformField(*field)
 	room.SendToPlayer(shootFromIndex, "shotFromYou", "server", WriteField(transformedField))
 
-	room.ChangeTurnTo(shootToIndex)
+	if CheckForWin(*field) {
+		room.SendToPlayer(shootFromIndex, "win", "server", "You win!")
+		room.SendToPlayer(shootToIndex, "lose", "server", "You lose! :(")
+	}
+
+	if !isHit {
+		room.ChangeTurnTo(shootToIndex)
+	}
+}
+
+func CheckForWin(field [][]int) bool {
+	for i := range field {
+		for j := range field[i] {
+			if field[i][j] == 1 {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func ExtractNumbers(str string) (int, int, error) {
@@ -148,13 +171,19 @@ func isDestroyed(field [][]int, x int, y int) bool {
 }
 
 func checkDirection(field [][]int, x int, y int, addX int, addY int) bool {
-	for x > 0 && x < fieldRowsAmount && y > 0 && y < fieldColsAmount && field[x][y] == 4 {
+	for x >= 0 && x < fieldRowsAmount && y >= 0 && y < fieldColsAmount {
+		if field[x][y] != 4 {
+			break
+		}
+
 		x += addX
 		y += addY
 	}
 
-	if x > 0 && x < fieldRowsAmount && y > 0 && y < fieldColsAmount && field[x][y] == 1 {
-		return false
+	if x >= 0 && x < fieldRowsAmount && y >= 0 && y < fieldColsAmount {
+		if field[x][y] == 1 {
+			return false
+		}
 	}
 
 	return true
@@ -170,7 +199,11 @@ func Recolor(fieldPtr *[][]int, x int, y int) {
 func RecolorDirection(fieldPtr *[][]int, x int, y int, addX int, addY int) {
 	var field = *fieldPtr
 
-	for x > 0 && x < fieldRowsAmount && y > 0 && y < fieldColsAmount && field[x][y] == 4 {
+	for x >= 0 && x < fieldRowsAmount && y >= 0 && y < fieldColsAmount {
+		if field[x][y] != 4 && field[x][y] != 5 {
+			break
+		}
+
 		field[x][y] = 5
 
 		x += addX
