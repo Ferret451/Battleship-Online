@@ -12,38 +12,48 @@ type Message struct {
 	Info     string `json:"Info"`
 }
 
-func (room *Room) handlePlayerMessages(conn *websocket.Conn) {
-	defer conn.Close()
+func (room *Room) HandlePlayerMessages(conn *websocket.Conn) {
 	for {
 		_, messageByte, err := conn.ReadMessage()
 		if err != nil {
 			log.Println(err)
+
+			var index = room.FindPlayer(conn)
+			room.Players[index].Connection = nil
+
+			err := conn.Close()
+			if err != nil {
+				log.Println(err)
+			}
+
 			break
 		}
 
-		message, err := handleMessage(messageByte)
+		message, err := DecodeMessage(messageByte)
 		if err == nil {
 			//log.Println(message.SentFrom, "sent message of type |", message.Type, "| with message |", message.Info, "|")
 
 			switch message.Type {
-			case "close":
-				log.Println("Player", message.SentFrom, "disconnected from room", message.Info)
-
-				//Deleting player
-				var result []Player
-				for _, v := range room.Players {
-					if v.Connection != conn {
-						result = append(result, v)
-					}
+			case "ready":
+				var index = room.FindPlayer(conn)
+				if index >= 0 {
+					room.Players[index].IsReady = true
+					room.Players[index].Field = ReadField(message.Info)
+					room.TryToStart()
 				}
-				room.Players = result
 
-				break
-			case "shot":
-				log.Println("Shot fired by:", message.SentFrom)
+			case "notReady":
+				var index = room.FindPlayer(conn)
+				if index > 0 {
+					room.Players[index].IsReady = false
+					room.Players[index].Field = make([][]int, 0)
+				}
 
 			case "chat":
-				room.sendToAll(message.Type, message.SentFrom, message.Info)
+				room.SendToAll(message.Type, message.SentFrom, message.Info)
+
+			case "shot":
+				room.HandleShoot(room.FindPlayer(conn), message.Info)
 
 			default:
 				log.Println("Unknown message type:", message.Type)
@@ -52,7 +62,7 @@ func (room *Room) handlePlayerMessages(conn *websocket.Conn) {
 	}
 }
 
-func handleMessage(jsonData []byte) (Message, error) {
+func DecodeMessage(jsonData []byte) (Message, error) {
 	var message Message
 	var err error = nil
 	if err = json.Unmarshal(jsonData, &message); err != nil {
@@ -63,8 +73,8 @@ func handleMessage(jsonData []byte) (Message, error) {
 	return message, err
 }
 
-func createMessage(_type string, sendFrom string, info string) []byte {
-	var message Message = Message{_type, sendFrom, info}
+func EncodeMessage(_type string, sendFrom string, info string) []byte {
+	var message = Message{_type, sendFrom, info}
 
 	jsonData, err := json.Marshal(message)
 	if err != nil {
@@ -72,4 +82,19 @@ func createMessage(_type string, sendFrom string, info string) []byte {
 	}
 
 	return jsonData
+}
+
+func (room *Room) SendToAll(_type string, sendFrom string, info string) {
+	for i := range room.Players {
+		room.SendToPlayer(i, _type, sendFrom, info)
+	}
+}
+
+func (room *Room) SendToPlayer(index int, _type string, sendFrom string, info string) {
+	message := EncodeMessage(_type, sendFrom, info)
+
+	err := room.Players[index].Connection.WriteMessage(websocket.BinaryMessage, message)
+	if err != nil {
+		log.Println(err)
+	}
 }

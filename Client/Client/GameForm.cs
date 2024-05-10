@@ -1,37 +1,34 @@
 ﻿using System;
 using System.Drawing;
 using System.Net.WebSockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Client {
     public partial class GameForm : Form {
-        private ClientWebSocket _clientWebSocket;
+        private readonly ClientWebSocket _clientWebSocket;
         private string _code;
         private string _nickname;
         private readonly int _baseFieldLeft = 12;
         private readonly int _baseFieldTop = 87;
-        private readonly Color _defaultColor;
-        private bool _isRight = true;
-        private bool _canToStand = true;
 
-        private readonly Color _canToStandColor = Color.LawnGreen;
-        private readonly Color _cannotToStandColor = Color.Red;
-        private readonly Color _shipColor = Color.Black;
-        private readonly Color _aroundShipColor = Color.Gray;
+        private readonly Color _defaultReadyColor;
+        private readonly Color _readyColor = Color.Green;
+        
+        private readonly Color _yourTurnColor = Color.Green;
+        private readonly Color _enemyTurnColor = Color.Red;
+        
+        private readonly PlayerFieldManager _playerFieldManager;
+        private readonly EnemyFieldManager _enemyFieldManager;
+        private readonly MessageManager _messageManager;
 
-        private readonly string[] _ships =
-            { "4 deck", "3 deck", "3 deck", "2 deck", "2 deck", "2 deck", "1 deck", "1 deck", "1 deck", "1 deck" };
+        private bool _isGameStarted = false;
+        private bool _isYourTurn = false;
 
         public GameForm(ClientWebSocket clientWebSocket, string code, string nickname) {
             InitializeComponent();
-            
-            _clientWebSocket = clientWebSocket;
-            _code = code;
-            _nickname = nickname;
-
-            ClearField();
 
             MakeField(dgvPlayerField, _baseFieldLeft, _baseFieldTop);
             MakeField(
@@ -41,15 +38,25 @@ namespace Client {
                 );
             dgvPlayerField.SendToBack();
             dgvEnemyField.SendToBack();
-            _defaultColor = dgvPlayerField.DefaultCellStyle.BackColor;
+            _defaultReadyColor = butReady.BackColor;
             
             tbChat.BringToFront();
             tbMessage.BringToFront();
             butSend.BringToFront();
-            
             panChat.Visible = false;
+            labTurn.Visible = false;
+            labTurn.SendToBack();
             
             ResizeControls();
+            
+            _clientWebSocket = clientWebSocket;
+            _code = code;
+            _nickname = nickname;
+            
+            _messageManager = new MessageManager(clientWebSocket);
+            _playerFieldManager = new PlayerFieldManager(dgvPlayerField, cbShips, nickname, _messageManager);
+            _playerFieldManager.ClearField();
+            _enemyFieldManager = new EnemyFieldManager(dgvEnemyField, nickname, _messageManager);
             
             tbChat.AppendText($"Room created with code {code}\r\n");
         }
@@ -75,7 +82,7 @@ namespace Client {
         }
         
         private async void GameForm_Load(object sender, EventArgs e) {
-            await SendReceiveMessages();
+            await ReceiveMessages();
         }
         
         private void GameForm_SizeChanged(object sender, EventArgs e) {
@@ -123,26 +130,21 @@ namespace Client {
         }
 
         private async void SendMessageButton_Click(object sender, EventArgs e) {
-            await SendMessageAsync();
+            await SendChatMessage();
         }
         
         private async void tbMessage_KeyDown(object sender, KeyEventArgs e) {
             if (e.KeyCode == Keys.Enter && !e.Shift) {
-                await SendMessageAsync();
-
-                e.Handled = true;
-            }
-        }
-        
-        private void tbMessage_TextChanged(object sender, EventArgs e) {
-            if (tbMessage.Text.Length > 1024) {
-                tbMessage.Text = tbMessage.Text.Substring(0, 1024);
+                await SendChatMessage();
             }
         }
 
-        private async Task SendMessageAsync() {
-            string message = tbMessage.Text;
-
+        private async Task SendChatMessage() {
+            var message = tbMessage.Text;
+            
+            if (string.IsNullOrEmpty(message))
+                return;
+            
             message = message.Trim();
 
             butSend.Focus();
@@ -150,227 +152,143 @@ namespace Client {
             tbMessage.Text = "";
             tbMessage.Select(0, 0);
             
-            if (string.IsNullOrEmpty(message))
-                return;
-            
-            if (_clientWebSocket.State == WebSocketState.Open) {
-                byte[] buffer = MessageManager.CreateMessage("chat", _nickname, message);
-                await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
-
-                LogMessage("Sent message: " + message); 
-            } else {
-                LogMessage("Error: WebSocket connection is not open.");
+            await _messageManager.SendMessageAsync("chat", _nickname, message);
+        }
+        
+        private void tbMessage_TextChanged(object sender, EventArgs e) {
+            if (tbMessage.Text.Length > 1024) {
+                tbMessage.Text = tbMessage.Text.Substring(0, 1024);
             }
         }
         
-        private async Task SendReceiveMessages() {
+        private async Task ReceiveMessages() {
             var receiveBuffer = new byte[1024];
-            
-            var receiveResult = await _clientWebSocket.ReceiveAsync(
-                new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
 
-            do {
-                Message message = MessageManager.HandleMessage(receiveBuffer);
+            try {
+                var receiveResult = await _clientWebSocket.ReceiveAsync(
+                    new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
 
-                if (message.Type == "chat") {
-                    tbChat.AppendText($"{message.SentFrom}: {message.Info}\r\n");
+                while (!receiveResult.CloseStatus.HasValue) {
+                    Message message = MessageManager.HandleMessage(receiveBuffer);
+
+                    if (message.Type == "chat") {
+                        tbChat.AppendText($"{message.SentFrom}: {message.Info}\r\n");
+                    }
+                    else if (message.Type == "start") {
+                        _isGameStarted = true;
+
+                        butReady.Visible = false;
+                        butClearField.Enabled = false;
+                        cbShips.Enabled = false;
+                        labTurn.Visible = true;
+                    }
+                    else if (message.Type == "goShoot") {
+                        _isYourTurn = true;
+                        
+                        labTurn.Text = "Your turn";
+                        labTurn.ForeColor = _yourTurnColor;
+                    }
+                    else if (message.Type == "wait") {
+                        _isYourTurn = false;
+                        
+                        labTurn.Text = "Enemy turn";
+                        labTurn.ForeColor = _enemyTurnColor;
+                    }
+                    else if (message.Type == "shotToYou") {
+                        _playerFieldManager.ReadField(message.Info);   
+                    }
+                    else if (message.Type == "shotFromYou") {
+                        _enemyFieldManager.ReadField(message.Info);
+                    }
+                    else {
+                        Console.WriteLine($"Error: unknown message type: {message.Type}.");
+                    }
+
+                    if (_clientWebSocket.State == WebSocketState.Open) {
+                        receiveBuffer = new byte[1024];
+
+                        receiveResult = await _clientWebSocket.ReceiveAsync(
+                            new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
+                    }
                 }
-                else {
-                    LogMessage("Error: Expected chat message from server.");
-                }
-
-                if (_clientWebSocket.State == WebSocketState.Open) {
-                    receiveBuffer = new byte[1024];
-                    receiveResult = await _clientWebSocket.ReceiveAsync(
-                        new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
-                }
-            } while (!receiveResult.CloseStatus.HasValue);
+            }
+            catch (Exception e) {
+                Console.WriteLine(e.Message);
+            }
+            finally {
+                MessageBox.Show("Connection closed");
             
-            // await _clientWebSocket.CloseAsync(
-            //     receiveResult.CloseStatus.Value,
-            //     receiveResult.CloseStatusDescription,
-            //     CancellationToken.None);
-
-            MessageBox.Show("Connection closed by server");
+                CloseConnection(WebSocketCloseStatus.NormalClosure, "Connection closed");
             
-            CloseConnection(receiveResult.CloseStatus.Value, receiveResult.CloseStatusDescription);
-            
-            Close();
+                Close();
+            }
         }
 
         private void GameForm_FormClosing(object sender, FormClosingEventArgs e) {
             if (_clientWebSocket.State != WebSocketState.Closed) {
-                CloseConnection(WebSocketCloseStatus.NormalClosure, "Closed by client");
+                CloseConnection(WebSocketCloseStatus.NormalClosure, "Connection closed");
             }
         }
 
         private async void CloseConnection(WebSocketCloseStatus closeStatus, string statusDescription) {
             await _clientWebSocket.CloseAsync(closeStatus, statusDescription, default);
         }
-        
-        private void LogMessage(string message) {
-            Console.WriteLine(message);
-        }
 
         private void dgvPlayerField_CellMouseEnter(object sender, DataGridViewCellEventArgs e) {
-            CellMouseEnter((DataGridView) sender, e.RowIndex, e.ColumnIndex);
-        }
-
-        private void CellMouseEnter(DataGridView dgv, int rowIndex, int columIndex) {
-            if (cbShips.SelectedIndex >= 0 && Int32.TryParse(cbShips.SelectedItem.ToString().Split(' ')[0], out int shipSize)) {
-                Color color = _canToStandColor;
-                _canToStand = true;
-                if (_isRight) {
-                    if (columIndex + shipSize > dgv.ColumnCount || IsShipAround(dgv, rowIndex, columIndex, shipSize)) {
-                        color = _cannotToStandColor;
-                        _canToStand = false;
-                    }
-                    
-                    for (int i = 0; i < shipSize; i++) {
-                        if (columIndex + i < dgv.ColumnCount) {
-                            Color cellColor = dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor;
-                            if (cellColor != _shipColor && cellColor != _aroundShipColor) {
-                                dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor = color;
-                                dgv.Rows[rowIndex].Cells[columIndex + i].Style.SelectionBackColor = color;
-                            }
-                        }
-                    }
-                }
-                else {
-                    if (rowIndex + shipSize > dgv.RowCount || IsShipAround(dgv, rowIndex, columIndex, shipSize)) {
-                        color = _cannotToStandColor;
-                        _canToStand = false;
-                    }
-                    
-                    for (int i = 0; i < shipSize; i++) {
-                        if (rowIndex + i < dgv.RowCount) {
-                            Color cellColor = dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor;
-                            if (cellColor != _shipColor &&
-                                cellColor != _aroundShipColor) {
-                                dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor = color;
-                                dgv.Rows[rowIndex + i].Cells[columIndex].Style.SelectionBackColor = color;
-                            }
-                        }
-                    }
-                }
+            if (!_playerFieldManager.IsReady && !_isGameStarted) {
+                _playerFieldManager.CellMouseEnter(e.RowIndex, e.ColumnIndex);
             }
         }
 
         private void dgvPlayerField_CellMouseLeave(object sender, DataGridViewCellEventArgs e) {
-            CellMouseLeave((DataGridView) sender, e.RowIndex, e.ColumnIndex);
+            if (!_playerFieldManager.IsReady && !_isGameStarted) {
+                _playerFieldManager.CellMouseLeave(e.RowIndex, e.ColumnIndex);
+            }
         }
         
-        private void CellMouseLeave(DataGridView dgv, int rowIndex, int columIndex) {
-            if (cbShips.SelectedIndex >= 0 && Int32.TryParse(cbShips.SelectedItem.ToString().Split(' ')[0], out int shipSize)) {
-                if (_isRight) {
-                    for (int i = 0; i < shipSize; i++) {
-                        if (columIndex + i < dgv.ColumnCount) {
-                            Color cellColor = dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor;
-                            if (cellColor != _shipColor &&
-                                cellColor != _aroundShipColor) {
-                                dgv.Rows[rowIndex].Cells[columIndex + i].Style.BackColor = _defaultColor;
-                                dgv.Rows[rowIndex].Cells[columIndex + i].Style.SelectionBackColor = _defaultColor;
-                            }
-                        }
-                    }
-                }
-                else {
-                    
-                    for (int i = 0; i < shipSize; i++) {
-                        if (rowIndex + i < dgv.RowCount) {
-                            Color cellColor = dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor;
-                            if (cellColor != _shipColor &&
-                                cellColor != _aroundShipColor) {
-                                dgv.Rows[rowIndex + i].Cells[columIndex].Style.BackColor = _defaultColor;
-                                dgv.Rows[rowIndex + i].Cells[columIndex].Style.SelectionBackColor = _defaultColor;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        private bool IsShipAround(DataGridView dgv, int rowIndex, int colIndex, int shipSize) {
-            if (_isRight) {
-                for (int i = 0; i < shipSize; i++) {
-                    Color color = dgv.Rows[rowIndex].Cells[colIndex + i].Style.BackColor;
-                    if (color == _shipColor || color == _aroundShipColor) {
-                        return true;
-                    }
-                }
-            } else {
-                for (int i = 0; i < shipSize; i++) {
-                    Color color = dgv.Rows[rowIndex + i].Cells[colIndex].Style.BackColor;
-                    if (color == _shipColor || color == _aroundShipColor) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
         private void dgvPlayerField_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e) {
-            DataGridView dgv = (DataGridView) sender;
-            
-            if (e.Button == MouseButtons.Right) {
-                CellMouseLeave(dgv, e.RowIndex, e.ColumnIndex);
-                _isRight = !_isRight;
-                CellMouseEnter(dgv, e.RowIndex, e.ColumnIndex);
-            } else if (e.Button == MouseButtons.Left) {
-                if (cbShips.SelectedIndex >= 0 && _canToStand && cbShips.Items.Count > 0 && Int32.TryParse(cbShips.SelectedItem.ToString().Split(' ')[0], out int shipSize)) {
-                    if (_isRight) {
-                        for (int i = 0; i < shipSize; i++) {
-                            dgv.Rows[e.RowIndex].Cells[e.ColumnIndex + i].Style.BackColor = _shipColor;
-                            dgv.Rows[e.RowIndex].Cells[e.ColumnIndex + i].Style.SelectionBackColor = _shipColor;
-                            PlaceAroundShip(dgv, e.RowIndex, e.ColumnIndex + i);
-                        }
-                    }
-                    else {
-                        for (int i = 0; i < shipSize; i++) {
-                            dgv.Rows[e.RowIndex + i].Cells[e.ColumnIndex].Style.BackColor = _shipColor;
-                            dgv.Rows[e.RowIndex + i].Cells[e.ColumnIndex].Style.SelectionBackColor = _shipColor;
-                            PlaceAroundShip(dgv, e.RowIndex + i, e.ColumnIndex);
-                        }
-                    }
-                    
-                    cbShips.Items.RemoveAt(cbShips.SelectedIndex);
-                }
-            }
-        }
-        
-        private void PlaceAroundShip(DataGridView dgv, int rowIndex, int colIndex) {
-            for (int i = -1; i < 2; i++) {
-                for (int j = -1; j < 2; j++) {
-                    int currRowIndex = rowIndex + i;
-                    int currColIndex = colIndex + j;
-                    if (currRowIndex >= 0 && currRowIndex < dgv.RowCount && 
-                        currColIndex >= 0 && currColIndex < dgv.ColumnCount &&
-                        dgv.Rows[currRowIndex].Cells[currColIndex].Style.BackColor != _shipColor) {
-                        dgv.Rows[currRowIndex].Cells[currColIndex].Style.BackColor = _aroundShipColor;
-                        dgv.Rows[currRowIndex].Cells[currColIndex].Style.SelectionBackColor = _aroundShipColor;
-                    }
-                }
+            if (!_playerFieldManager.IsReady && !_isGameStarted) {
+                _playerFieldManager.CellMouseDown(e);
             }
         }
         
         private void butClearField_Click(object sender, EventArgs e) {
-            ClearField();
+            _playerFieldManager.ClearField();
         }
 
-        private void ClearField() {
-            cbShips.Items.Clear();
-            for (int i = 0; i < _ships.Length; i++) {
-                cbShips.Items.Add(_ships[i]);
-            }
+        private async void butReady_Click(object sender, EventArgs e) {
+            if (cbShips.Items.Count == 0) {
+                await _playerFieldManager.ReadyClick();
 
-            cbShips.SelectedIndex = 0;
-            
-            for (int i = 0; i < dgvPlayerField.RowCount; i++) {
-                for (int j = 0; j < dgvPlayerField.ColumnCount; j++) {
-                    dgvPlayerField.Rows[i].Cells[j].Style.BackColor = _defaultColor;
-                    dgvPlayerField.Rows[i].Cells[j].Style.SelectionBackColor = _defaultColor;
+                if (_playerFieldManager.IsReady) {
+                    butReady.BackColor = _readyColor;
+
+                    butClearField.Enabled = false;
+                    cbShips.Enabled = false;
+                } else {
+                    butReady.BackColor = _defaultReadyColor;
+                    
+                    butClearField.Enabled = true;
+                    cbShips.Enabled = true;
                 }
+            }
+        }
+
+        private void dgvEnemyField_CellMouseEnter(object sender, DataGridViewCellEventArgs e) {
+            if (_isGameStarted && _isYourTurn) {
+                _enemyFieldManager.CellMouseEnter(e.RowIndex, e.ColumnIndex);
+            }
+        }
+
+        private void dgvEnemyField_CellMouseLeave(object sender, DataGridViewCellEventArgs e) {
+            if (_isGameStarted && _isYourTurn) {
+                _enemyFieldManager.CellMouseLeave(e.RowIndex, e.ColumnIndex);
+            }
+        }
+
+        private void dgvEnemyField_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e) {
+            if (_isGameStarted && _isYourTurn) {
+                _enemyFieldManager.CellMouseDown(e.RowIndex, e.ColumnIndex);
             }
         }
     }

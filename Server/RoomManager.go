@@ -14,13 +14,10 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-const (
-	roomCodeLength = 6
-)
-
 type Player struct {
 	Connection *websocket.Conn
 	IsReady    bool
+	Field      [][]int
 }
 
 // Room represents a game room with a unique code and players.
@@ -31,7 +28,7 @@ type Room struct {
 
 var rooms map[string]*Room
 
-func generateRoomCode() string {
+func GenerateRoomCode() string {
 	bytes := make([]byte, roomCodeLength)
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -41,90 +38,117 @@ func generateRoomCode() string {
 	return base64.URLEncoding.EncodeToString(bytes)[:roomCodeLength]
 }
 
-func createRoomHandler(w http.ResponseWriter, r *http.Request) {
+func CreateRoomHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
-		conn.Close()
+
+		err := conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 
-	code := generateRoomCode()
+	code := GenerateRoomCode()
 	room := &Room{
 		Code:    code,
 		Players: make([]Player, 0),
 	}
-	newPlayer := Player{conn, false}
+	newPlayer := Player{conn, false, make([][]int, 0)}
 	room.Players = append(room.Players, newPlayer)
 	rooms[code] = room
 
 	log.Println("Room created with code:", code)
 
-	message := createMessage("code", "server", code)
+	message := EncodeMessage("code", "server", code)
 	err = conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Println(err)
 	}
 
-	go room.handlePlayerMessages(conn)
+	go room.HandlePlayerMessages(conn)
 
-	go room.cleanup(code)
+	go room.Cleanup()
 }
 
-func joinRoomHandler(w http.ResponseWriter, r *http.Request) {
+func JoinRoomHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 
-		conn.Close()
+		err := conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	room, ok := rooms[code]
 	if !ok {
-		message := createMessage("error", "server", "No such code!")
+		message := EncodeMessage("error", "server", "No such code!")
 		err = conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
 			log.Println(err)
 		}
 
-		conn.Close()
+		err := conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 
-	if len(room.Players) == 2 {
-		message := createMessage("error", "server", "Room is fulfill!")
+	if len(room.Players) >= 2 {
+		message := EncodeMessage("error", "server", "Room is full!")
 		err = conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
 			log.Println(err)
 		}
 
-		conn.Close()
+		err := conn.Close()
+		if err != nil {
+			log.Println(err)
+		}
+
 		return
 	}
 
-	message := createMessage("code", "server", code)
+	message := EncodeMessage("code", "server", code)
 	err = conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Println(err)
 	}
 
-	newPlayer := Player{conn, false}
+	newPlayer := Player{conn, false, make([][]int, 0)}
 	room.Players = append(room.Players, newPlayer)
 	log.Println("Player joined room with code:", code)
 
-	go room.handlePlayerMessages(conn)
-
-	go room.cleanup(code)
+	go room.HandlePlayerMessages(conn)
 }
 
-func (room *Room) cleanup(code string) {
-	ticker := time.Tick(time.Minute)
+func (room *Room) Cleanup() {
+	ticker := time.Tick(time.Minute / 2)
 	for range ticker {
+		var remainingPlayers []Player
+
+		for _, player := range room.Players {
+			if player.Connection != nil {
+				remainingPlayers = append(remainingPlayers, player)
+			} else {
+				log.Println("Player disconnected and removed from room:", room.Code)
+			}
+		}
+
+		room.Players = remainingPlayers
+
 		if len(room.Players) == 0 {
-			log.Println("Cleaning up room with code:", code)
-			delete(rooms, code)
+			log.Println("Cleaning up room with code:", room.Code)
+			delete(rooms, room.Code)
 			break
 		}
 	}

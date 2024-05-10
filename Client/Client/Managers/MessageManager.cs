@@ -1,6 +1,8 @@
 using System;
-using System.Text;
+using System.Net.WebSockets;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Client {
     public class Message {
@@ -10,6 +12,12 @@ namespace Client {
     }
     
     public class MessageManager {
+        private readonly ClientWebSocket _clientWebSocket;
+        
+        public MessageManager(ClientWebSocket clientWebSocket) {
+            _clientWebSocket = clientWebSocket;
+        }
+        
         private static byte[] CutMessage(byte[] data) {
             for (int i = 0; i < data.Length; i++) {
                 if (data[i] == 0) {
@@ -44,6 +52,17 @@ namespace Client {
             };
             
             return JsonSerializer.SerializeToUtf8Bytes(message);
+        }
+        
+        public async Task SendMessageAsync(string type, string sendFrom, string message = "") {
+            if (_clientWebSocket.State == WebSocketState.Open) {
+                byte[] buffer = CreateMessage(type, sendFrom, message);
+                await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+
+                Console.WriteLine($"Sent message of type {type} with message {message}"); 
+            } else {
+                Console.WriteLine("Error: WebSocket connection is not open.");
+            }
         }
     }
 }

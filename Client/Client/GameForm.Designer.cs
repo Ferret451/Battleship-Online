@@ -37,6 +37,8 @@
             this.labYou = new System.Windows.Forms.Label();
             this.labEnemy = new System.Windows.Forms.Label();
             this.butClearField = new System.Windows.Forms.Button();
+            this.butReady = new System.Windows.Forms.Button();
+            this.labTurn = new System.Windows.Forms.Label();
             this.panChat.SuspendLayout();
             this.panSend.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvPlayerField)).BeginInit();
@@ -164,6 +166,9 @@
             this.dgvEnemyField.RowTemplate.ReadOnly = true;
             this.dgvEnemyField.Size = new System.Drawing.Size(388, 388);
             this.dgvEnemyField.TabIndex = 10;
+            this.dgvEnemyField.CellMouseDown += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.dgvEnemyField_CellMouseDown);
+            this.dgvEnemyField.CellMouseEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvEnemyField_CellMouseEnter);
+            this.dgvEnemyField.CellMouseLeave += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvEnemyField_CellMouseLeave);
             // 
             // labYou
             // 
@@ -193,12 +198,34 @@
             this.butClearField.UseVisualStyleBackColor = true;
             this.butClearField.Click += new System.EventHandler(this.butClearField_Click);
             // 
+            // butReady
+            // 
+            this.butReady.Font = new System.Drawing.Font("Ink Free", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.butReady.Location = new System.Drawing.Point(269, 12);
+            this.butReady.Name = "butReady";
+            this.butReady.Size = new System.Drawing.Size(131, 32);
+            this.butReady.TabIndex = 14;
+            this.butReady.Text = "Ready";
+            this.butReady.UseVisualStyleBackColor = true;
+            this.butReady.Click += new System.EventHandler(this.butReady_Click);
+            // 
+            // labTurn
+            // 
+            this.labTurn.Font = new System.Drawing.Font("Ink Free", 20F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labTurn.Location = new System.Drawing.Point(435, 13);
+            this.labTurn.Name = "labTurn";
+            this.labTurn.Size = new System.Drawing.Size(243, 37);
+            this.labTurn.TabIndex = 15;
+            this.labTurn.Text = "Your turn";
+            // 
             // GameForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Control;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.labTurn);
+            this.Controls.Add(this.butReady);
             this.Controls.Add(this.butClearField);
             this.Controls.Add(this.labEnemy);
             this.Controls.Add(this.labYou);
@@ -222,6 +249,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.dgvEnemyField)).EndInit();
             this.ResumeLayout(false);
         }
+
+        private System.Windows.Forms.Label labTurn;
+
+        private System.Windows.Forms.Button butReady;
 
         private System.Windows.Forms.Button butClearField;
 

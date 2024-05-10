@@ -14,9 +14,14 @@ namespace Client {
             if (!ValidateNickname(tbNickname.Text))
                 return;
             
-            _clientWebSocket = new ClientWebSocket();
-            Uri serverUri = new Uri("ws://localhost:8080/createRoom");
-            await _clientWebSocket.ConnectAsync(serverUri, default);
+            try {
+                _clientWebSocket = new ClientWebSocket();
+                Uri serverUri = new Uri("ws://localhost:8080/createRoom");
+                await _clientWebSocket.ConnectAsync(serverUri, default);
+            } catch (Exception ex) {
+                MessageBox.Show($"Connection error: {ex.Message}");
+                return;
+            }
 
             // Handle room code received from server
             byte[] buffer = new byte[1024];
@@ -28,10 +33,11 @@ namespace Client {
             } else {
                 string code = message.Info;
                 GameForm gameForm = new GameForm(_clientWebSocket, code, tbNickname.Text);
-                gameForm.ShowDialog();  
                 
-                buffer = MessageManager.CreateMessage("close", "client", code);
-                await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, default);
+                gameForm.ShowDialog();
+                
+                // buffer = MessageManager.CreateMessage("close", "client", code);
+                // await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, default);
             }
         }
 
@@ -43,9 +49,14 @@ namespace Client {
                 if (joinRoomForm.ShowDialog() == DialogResult.OK) {
                     string code = joinRoomForm.RoomCode;
                     
-                    _clientWebSocket = new ClientWebSocket();
-                    Uri serverUri = new Uri($"ws://localhost:8080/joinRoom?code={code}");
-                    await _clientWebSocket.ConnectAsync(serverUri, default);
+                    try {
+                        _clientWebSocket = new ClientWebSocket();
+                        Uri serverUri = new Uri($"ws://localhost:8080/joinRoom?code={code}");
+                        await _clientWebSocket.ConnectAsync(serverUri, default);
+                    } catch (Exception ex) {
+                        MessageBox.Show($"Connection error: {ex.Message}");
+                        return;
+                    }
                     
                     byte[] buffer = new byte[1024];
                     await _clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), default);
@@ -55,10 +66,11 @@ namespace Client {
                         MessageBox.Show($"Error: {message.Info}");
                     } else if (message.Type == "code") {
                         GameForm gameForm = new GameForm(_clientWebSocket, code, tbNickname.Text);
-                        gameForm.ShowDialog();
                         
-                        buffer = MessageManager.CreateMessage("close", "client", code);
-                        await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, default);
+                        gameForm.ShowDialog();
+
+                        // buffer = MessageManager.CreateMessage("close", "client", code);
+                        // await _clientWebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Binary, true, default);
                     } else {
                         MessageBox.Show("Error: Expected joined message from server.");
                     }
